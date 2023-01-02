@@ -34,6 +34,10 @@ export abstract class KafkaConsumer implements OnModuleInit {
       ],
     });
   }
+  /**
+   * ハンドラ処理（業務処理）
+   */
+  abstract handler(message: KafkaMessage): void;
 
   /**
    * ホストモジュールの依存関係が解決された直後の処理
@@ -50,9 +54,7 @@ export abstract class KafkaConsumer implements OnModuleInit {
 
     const config: ConsumerRunConfig = {
       eachMessage: async ({ message }) => {
-        this.actionBeforeHandler();
-        await this.handler(message);
-        this.actionAfterHandler();
+        this.execute(message);
       },
     };
 
@@ -72,9 +74,17 @@ export abstract class KafkaConsumer implements OnModuleInit {
   }
 
   /**
-   * メイン処理（業務処理）
+   * 実行処理
    */
-  abstract handler(message: KafkaMessage): void;
+  private execute(message: KafkaMessage): void {
+    this.actionBeforeHandler();
+    if (this.isIdempotent()) {
+      this.handler(message);
+    } else {
+      this.logger.warn(`${this.consumerGroupName}の処理が重複しました`);
+    }
+    this.actionAfterHandler();
+  }
 
   /**
    * ハンドラーの前処理
@@ -89,5 +99,13 @@ export abstract class KafkaConsumer implements OnModuleInit {
    */
   private actionAfterHandler(): void {
     this.logger.log(`${this.consumerGroupName}の処理を終了します`);
+  }
+
+  /**
+   * 冪等処理
+   */
+  private isIdempotent(): boolean {
+    // TODO: アプリケーション固有の冪等チェックを記載する
+    return true;
   }
 }
