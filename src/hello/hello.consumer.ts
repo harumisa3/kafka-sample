@@ -16,6 +16,6 @@ export class HelloConsumer extends KafkaConsumer {
     /**
      * Consumer固有のロジックを書く
      */
-    this.helloService.execute();
+    this.helloService.execute(message.value);
   }
 }

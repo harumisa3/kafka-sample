@@ -1,13 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 export interface IHelloService {
-  execute(): void;
+  execute(message: Buffer): void;
 }
 
 @Injectable()
 export class HelloService implements IHelloService {
   private logger: Logger = new Logger();
-  execute(): void {
-    this.logger.log('サービス処理を実行しました');
+  execute(message: Buffer): void {
+    const msgJson = Buffer.from(message).toString();
+    this.logger.log(`受信したメッセージ：${msgJson}`);
   }
 }
