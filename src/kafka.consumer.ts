@@ -1,11 +1,5 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import {
-  Kafka,
-  Consumer,
-  KafkaMessage,
-  ConsumerSubscribeTopics,
-  ConsumerRunConfig,
-} from 'kafkajs';
+import { Kafka, Consumer, KafkaMessage } from 'kafkajs';
 
 /**
  * KafkaConsumerの基底クラス
@@ -15,9 +9,10 @@ export abstract class KafkaConsumer implements OnModuleInit {
   /**
    * クラスメンバ
    */
-  private readonly consumers: Consumer[] = [];
   private readonly kafka: Kafka;
-  protected logger: Logger = new Logger();
+  private readonly logger: Logger = new Logger();
+  private consumer: Consumer; // onModuleInitが呼び出された際に値を格納
+
   /**
    * 抽象メンバ
    */
@@ -43,41 +38,36 @@ export abstract class KafkaConsumer implements OnModuleInit {
    * ホストモジュールの依存関係が解決された直後の処理
    */
   async onModuleInit() {
-    const consumer = this.kafka.consumer({
+    this.consumer = this.kafka.consumer({
       groupId: this.consumerGroupName,
       heartbeatInterval: 20000,
       sessionTimeout: 60000,
     });
-    const topic: ConsumerSubscribeTopics = {
+
+    await this.consumer.connect();
+    await this.consumer.subscribe({
       topics: [this.consumerTopicName],
-    };
-
-    const config: ConsumerRunConfig = {
-      eachMessage: async ({ message }) => {
-        this.execute(message);
+      fromBeginning: true,
+    });
+    await this.consumer.run({
+      eachMessage: async ({ partition, message }) => {
+        this.execute(partition, message);
       },
-    };
-
-    await consumer.connect();
-    await consumer.subscribe(topic);
-    await consumer.run(config);
-    this.consumers.push(consumer);
+    });
   }
 
   /**
    * 終了シグナルを受け取った時の処理
    */
   async onModuleDestroy() {
-    for (const consumer of this.consumers) {
-      this.logger.log(`${this.consumerGroupName}をkafkaから切断します`);
-      await consumer.disconnect();
-    }
+    this.logger.log(`${this.consumerGroupName}をkafkaから切断します`);
+    await this.consumer.disconnect();
   }
 
   /**
    * 実行処理
    */
-  private execute(message: KafkaMessage): void {
+  private execute(partition: number, message: KafkaMessage): void {
     this.actionBeforeHandler();
     if (this.isIdempotent()) {
       this.handler(message);
