@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 export interface IHelloService {
   execute(): void;
@@ -6,7 +6,8 @@ export interface IHelloService {
 
 @Injectable()
 export class HelloService implements IHelloService {
+  private logger: Logger = new Logger();
   execute(): void {
-    console.info('サービス処理を実行しました');
+    this.logger.log('サービス処理を実行しました');
   }
 }

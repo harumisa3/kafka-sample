@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import {
   Kafka,
   Consumer,
@@ -6,10 +6,18 @@ import {
   ConsumerSubscribeTopics,
   ConsumerRunConfig,
 } from 'kafkajs';
+
+/**
+ * KafkaConsumerの基底クラス
+ */
 @Injectable()
 export abstract class KafkaConsumer implements OnModuleInit {
-  private readonly consumers: Consumer[];
+  /**
+   * クラスメンバ
+   */
+  private readonly consumers: Consumer[] = [];
   private readonly kafka: Kafka;
+  protected logger: Logger = new Logger();
   /**
    * 抽象メンバ
    */
@@ -28,7 +36,7 @@ export abstract class KafkaConsumer implements OnModuleInit {
   }
 
   /**
-   * アプリケーション起動時の処理
+   * ホストモジュールの依存関係が解決された直後の処理
    */
   async onModuleInit() {
     const consumer = this.kafka.consumer({
@@ -44,7 +52,7 @@ export abstract class KafkaConsumer implements OnModuleInit {
       eachMessage: async ({ message }) => {
         this.actionBeforeHandler();
         await this.handler(message);
-        this.actionBeforeHandler();
+        this.actionAfterHandler();
       },
     };
 
@@ -55,9 +63,9 @@ export abstract class KafkaConsumer implements OnModuleInit {
   }
 
   /**
-   * アプリケーション停止時の設定
+   * 終了シグナルを受け取った時の処理
    */
-  async onApplicationShutdown() {
+  async onModuleDestroy() {
     for (const consumer of this.consumers) {
       await consumer.disconnect();
     }
@@ -72,13 +80,14 @@ export abstract class KafkaConsumer implements OnModuleInit {
    * ハンドラーの前処理
    */
   private actionBeforeHandler(): void {
-    console.info('前処理');
+    this.logger.log(`${this.consumerGroupName}の処理を開始します`);
+    this.logger.log(`${this.consumerTopicName}からメッセージを取得します`);
   }
 
   /**
    * ハンドラーの後処理
    */
   private actionAfterHandler(): void {
-    console.log('後処理');
+    this.logger.log(`${this.consumerGroupName}の処理を終了します`);
   }
 }
