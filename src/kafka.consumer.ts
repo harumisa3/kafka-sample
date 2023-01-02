@@ -69,6 +69,7 @@ export abstract class KafkaConsumer implements OnModuleInit {
    */
   async onModuleDestroy() {
     for (const consumer of this.consumers) {
+      this.logger.log(`${this.consumerGroupName}をkafkaから切断します`);
       await consumer.disconnect();
     }
   }
